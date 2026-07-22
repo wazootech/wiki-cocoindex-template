@@ -56,13 +56,20 @@ python scripts/query_index.py "fresh context for agents"
 
 PGlite uses a WASM Postgres build with pgvector support — no Docker daemon required.
 
-### Optional: CocoIndex flow
+### CocoIndex incremental flow
 
-Install CocoIndex to experiment with `sidecar/flow.py`:
+`sidecar/flow.py` is a CocoIndex app that uses `@coco.fn(memo=True)` alongside the
+Wiki Python API (`wiki.parser.split_frontmatter_body`) to keep the pgvector index
+incrementally in sync with the wiki corpus. When a page changes, only the affected
+chunks re-process.
 
 ```bash
-pip install cocoindex
+pip install -r requirements.txt
+pip install -r requirements-cocoindex.txt
+python scripts/run_flow.py
 ```
+
+Requires a Postgres + pgvector instance (`docker compose up -d --build`).
 
 ## What lives where
 
