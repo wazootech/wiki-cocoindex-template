@@ -1,0 +1,54 @@
+# Wiki paths, assets, and filename policy (wiki check / wiki lint).
+wiki:
+  # Markdown and data directories to index (relative to this file).
+  inputs:
+    - wiki
+  # Static files for custom CSS, logos, favicons (copied on wiki build).
+  assets:
+    - assets
+  # Full-filename regex for markdown files (lint.filename_pattern severity).
+  filename_pattern: "[A-Za-z0-9_()-]+\\.md"
+
+# RDF document URIs, prefixes, and graph build settings.
+graph:
+  content_predicate: schema:articleBody
+  # CURIE prefix map for frontmatter and microdata.
+  context:
+    schema: https://schema.org/
+    wiki: https://wazootech.github.io/wiki-template/wiki/
+    wazoo: https://schema.wazoo.dev/
+    foaf: http://xmlns.com/foaf/0.1/
+    dc: http://purl.org/dc/elements/1.1/
+    dcterms: http://purl.org/dc/terms/
+    sh: http://www.w3.org/ns/shacl#
+    xsd: http://www.w3.org/2001/XMLSchema#
+
+# Page layout and URL routing.
+site:
+  # Default page layout Jinja template.
+  layout: layouts/default.html.j2
+  # URL prefix for built and served pages.
+  base_url: /
+  # dir -> slug/index.html; file -> slug.html
+  url_style: dir
+
+check:
+  missing_layout_file: error
+  frontmatter_schema: error
+  missing_schema_ref: error
+
+# Convention severities (wiki lint): links, filenames, headings.
+lint:
+  broken_links: warning
+  filename_pattern: warning
+  headings: off
+  heading_levels: off
+  duplicate_headings: off
+  thematic_breaks: off
+  link_style: warning
+
+# Markdown formatting options (wiki fmt).
+fmt:
+  wrap: "no"
+  end_of_line: lf
+  extensions: [gfm, frontmatter, wikilink]

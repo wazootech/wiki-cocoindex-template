@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  wiki:
+    name: Validate wiki
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Wiki CLI
+        run: pip install wazootech-wiki
+
+      - name: Integrity audits
+        run: wiki check --strict -v
+
+      - name: Convention audits
+        run: wiki lint --strict -v
