@@ -53,6 +53,7 @@ def _query_manifest(query: str, limit: int) -> list[dict[str, object]]:
                 "heading": chunk["heading"],
                 "fragment": chunk["fragment"],
                 "content_hash": chunk["content_hash"],
+                "wiki_lock_hash": chunk.get("wiki_lock_hash", "none"),
                 "text": chunk["text"],
                 "score": round(score_text(query, str(chunk["text"])), 6),
             }

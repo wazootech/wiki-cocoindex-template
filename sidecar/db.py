@@ -6,12 +6,16 @@ Tries Docker Postgres first, falls back to PGlite (zero-Docker local mode).
 from __future__ import annotations
 
 import os
+import tempfile
 from contextlib import contextmanager
+from pathlib import Path
 from typing import Iterator
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL", "postgresql://postgres@localhost:5432/postgres"
 )
+
+_PGLITE_DATA_DIR = Path(tempfile.gettempdir()) / "wiki-cocoindex-pglite"
 
 
 def _docker_available() -> bool:
@@ -31,7 +35,11 @@ def _pglite_connect(schema_sql: str | None = None) -> object:
     from pgvector.psycopg import register_vector
     import psycopg
 
-    config = PGliteConfig(extensions=["pgvector"])
+    _PGLITE_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    config = PGliteConfig(
+        extensions=["pgvector"],
+        data_dir=str(_PGLITE_DATA_DIR),
+    )
     manager = PGliteManager(config=config)
     dsn = manager.get_dsn()
     conn = psycopg.connect(dsn, autocommit=True)
