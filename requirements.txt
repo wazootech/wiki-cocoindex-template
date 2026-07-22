@@ -1,0 +1,5 @@
+PyYAML
+psycopg[binary]
+pgvector
+pytest
+wazootech-wiki

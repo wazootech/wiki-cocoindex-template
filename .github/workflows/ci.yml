@@ -17,11 +17,44 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install Wiki CLI
-        run: pip install wazootech-wiki
+      - name: Install dependencies
+        run: pip install -r requirements.txt
 
-      - name: Integrity audits
-        run: wiki check --strict -v
+      - name: Format check
+        run: wiki -c wiki.yml fmt --check
 
       - name: Convention audits
-        run: wiki lint --strict -v
+        run: wiki -c wiki.yml lint --strict -v
+
+      - name: Integrity audits
+        run: wiki -c wiki.yml check --strict -v
+
+      - name: Build manifest
+        run: python scripts/build_manifest.py
+
+      - name: Test helpers
+        run: python -m pytest
+
+  pglite:
+    name: PGlite fallback
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-pglite.txt
+
+      - name: Build manifest
+        run: python scripts/build_manifest.py
+
+      - name: Load index via PGlite
+        run: python scripts/load_index.py
+
+      - name: Query index via PGlite
+        run: python scripts/query_index.py "incremental context"

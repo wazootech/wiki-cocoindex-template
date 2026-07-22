@@ -13,4 +13,4 @@ sh:property:
 
 # Person shape
 
-Defines validation rules for Person profiles in this wiki.
+Defines validation rules for person profiles that appear in the source corpus.

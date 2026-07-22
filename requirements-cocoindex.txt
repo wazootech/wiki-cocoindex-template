@@ -1,0 +1,2 @@
+cocoindex[postgres]
+asyncpg
