@@ -24,7 +24,7 @@ wiki -c wiki.yml check --strict
 4. Start Postgres with pgvector:
 
 ```bash
-docker compose up -d
+docker compose up -d --build
 ```
 
 5. Build the deterministic manifest and load the derived index:

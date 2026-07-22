@@ -8,20 +8,32 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import psycopg
+from psycopg.errors import DuplicateObject, UniqueViolation
 from pgvector.psycopg import register_vector
 
 from sidecar.manifest import load_chunks
 
 
 DATABASE_URL = os.getenv(
-    "DATABASE_URL", "postgresql://cocoindex:cocoindex@localhost:5432/wiki_cocoindex"
+    "DATABASE_URL", "postgresql://postgres@localhost:5432/postgres"
 )
+
+
+def ensure_vector_extension() -> None:
+    with psycopg.connect(DATABASE_URL, connect_timeout=2) as conn:
+        try:
+            with conn.cursor() as cur:
+                cur.execute("CREATE EXTENSION IF NOT EXISTS vector")
+            conn.commit()
+        except (DuplicateObject, UniqueViolation):
+            conn.rollback()
 
 
 def main() -> None:
     root = Path(__file__).resolve().parents[1]
     chunks = load_chunks(root / ".build" / "wiki-manifest")
     try:
+        ensure_vector_extension()
         with psycopg.connect(DATABASE_URL, connect_timeout=2) as conn:
             register_vector(conn)
             with conn.cursor() as cur:
@@ -66,7 +78,7 @@ def main() -> None:
             conn.commit()
         print(f"loaded {len(chunks)} chunks")
     except Exception as exc:
-        print(f"database unavailable, skipped load: {exc.__class__.__name__}")
+        print(f"database unavailable, skipped load: {exc.__class__.__name__}: {exc}")
 
 
 if __name__ == "__main__":
