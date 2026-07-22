@@ -27,17 +27,20 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install Wiki CLI
-        run: pip install wazootech-wiki
+      - name: Install dependencies
+        run: pip install -r requirements.txt
 
-      - name: Integrity audits
-        run: wiki check --strict -v
+      - name: Format check
+        run: wiki -c wiki.yml fmt --check
 
       - name: Convention audits
-        run: wiki lint --strict -v
+        run: wiki -c wiki.yml lint --strict -v
+
+      - name: Integrity audits
+        run: wiki -c wiki.yml check --strict -v
 
       - name: Build static site
-        run: wiki build --output-dir _site --site-base-url /
+        run: wiki -c wiki.yml build --output-dir _site --site-base-url /
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

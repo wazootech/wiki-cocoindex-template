@@ -1,79 +1,100 @@
-# wiki-template
+# wiki-cocoindex-template
 
-Generic **Wiki CLI** workspace starter — `wiki init` parity plus GitHub Pages deploy.
+Wiki CLI template for CocoIndex-backed incremental memory sidecars.
 
-This is the privileged generic scaffold. For the Karpathy-pattern [LLM Wiki](https://github.com/wazootech/wiki/blob/main/docs/wiki/LLM_Wiki.md) vault (agent gardening, shapes, SPARQL indexes), use [`llm-wiki-template`](https://github.com/wazootech/llm-wiki-template) ([#83](https://github.com/wazootech/wiki/issues/83)).
-
-Full ecosystem registry: [Wiki CLI templates](https://github.com/wazootech/wiki/blob/main/docs/wiki/Wiki_CLI.md#ecosystem-templates).
+Wiki stays the source of truth. CocoIndex materializes derived indexes for agent memory, RAG, hybrid retrieval, and graph-style lookup.
 
 ## Quick start
 
-1. Click **Use this template** on GitHub (or clone this repo).
-2. Install [Wiki CLI](https://pypi.org/project/wazootech-wiki/):
+1. Click **Use this template** on GitHub or clone the repo.
+2. Install the Wiki tooling and local index dependencies:
 
 ```bash
-pip install wazootech-wiki
+pip install -r requirements.txt
 ```
 
-3. Validate and preview:
+3. Validate the wiki corpus:
 
 ```bash
-wiki check --strict
-wiki serve --watch
+wiki -c wiki.yml fmt --check
+wiki -c wiki.yml lint --strict
+wiki -c wiki.yml check --strict
 ```
 
-4. Enable **Settings → Pages → Source: GitHub Actions** so the deploy workflow can publish `wiki build` output.
+4. Start Postgres with pgvector:
 
-## Workspace layout
+```bash
+docker compose up -d
+```
 
-- `wiki.yaml` — config root (`wiki.inputs`, `graph.*`, `site.*`)
-- `wiki/` — markdown vault with semantic frontmatter
-- `layouts/` — Jinja page templates
-- `assets/` — static files copied on `wiki build`
+5. Build the deterministic manifest and load the derived index:
+
+```bash
+python scripts/build_manifest.py
+python scripts/load_index.py
+```
+
+6. Query the derived index:
+
+```bash
+python scripts/query_index.py "fresh context for agents"
+```
+
+7. Optional: install CocoIndex to experiment with `sidecar/flow.py`:
+
+```bash
+pip install cocoindex
+```
+
+## What lives where
+
+- `wiki.yml` - Wiki CLI config and RDF prefixes
+- `wiki/` - validated Markdown source corpus
+- `sidecar/` - manifesting, provenance, retrieval, and CocoIndex example flow
+- `scripts/` - build, load, query, and demo commands
+- `docker-compose.yml` - local Postgres + pgvector
+- `.github/workflows/` - CI and GitHub Pages deploy
 
 ## Commands
 
 | Command | Purpose |
-| ------- | ------- |
-| `wiki check` | SHACL, JSON Schema, routes, layout integrity |
-| `wiki lint` | Broken links, filename pattern, heading conventions |
-| `wiki fmt` | Mechanical markdown layout |
-| `wiki serve --watch` | Local preview |
-| `wiki build` | Static HTML for deployment |
-| `wiki export` | JSON-LD, Turtle, TriG RDF serializations |
+| --- | --- |
+| `wiki -c wiki.yml fmt --check` | Mechanical markdown formatting check |
+| `wiki -c wiki.yml lint --strict` | Broken links, filename pattern, heading conventions |
+| `wiki -c wiki.yml check --strict` | SHACL, JSON Schema, route, and layout integrity |
+| `python scripts/build_manifest.py` | Export deterministic page/chunk/link manifests |
+| `python scripts/load_index.py` | Upsert chunk records into Postgres/pgvector |
+| `python scripts/query_index.py` | Search the derived index and print citations |
+| `python scripts/demo_incremental_update.py` | Show what changes when a Wiki page changes |
 
-## Related
+## Architecture
 
-- [Wiki CLI](https://github.com/wazootech/wiki)
-- [Getting started](https://github.com/wazootech/wiki/blob/main/docs/wiki/Getting_Started.md)
+```text
+Wiki Markdown + wiki.yml
+  -> wiki fmt / lint / check
+  -> deterministic manifest build
+  -> derived sidecar index
+  -> Postgres + pgvector
+  -> cited retrieval results
+```
+
+## Trust boundaries
+
+- Wiki pages are authoritative.
+- CocoIndex outputs are derived and rebuildable.
+- Every record carries page path, heading, fragment, and content hash.
+- Generated claims stay outside the source corpus until reviewed.
 
 ## Deployment
 
-This wiki builds to a static site. Any provider that serves static files works.
+This template publishes the wiki site with GitHub Pages.
 
-### GitHub Pages (preferred)
+1. Enable **Settings -> Pages -> Source: GitHub Actions**.
+2. Push to `main`.
+3. The deploy workflow publishes the built site.
 
-1. Go to **Settings &rarr; Pages &rarr; Source: GitHub Actions**
-2. Push to the default branch &mdash; the \.github/workflows/deploy-pages.yml\ workflow builds and deploys automatically
-3. Your site appears at \https://{org}.github.io/{repo}/\
+## Why not just use SPARQL or plain RAG?
 
-### Vercel
-
-1. Import this repo at [vercel.com/new](https://vercel.com/new)
-2. **Build command:** \pip install wazootech-wiki && wiki build --output-dir .vercel/output --site-base-url /\
-3. **Output directory:** \.vercel/output\
-4. Deploy
-
-### Netlify
-
-1. Import this repo at [app.netlify.com/start](https://app.netlify.com/start)
-2. **Build command:** \pip install wazootech-wiki && wiki build --output-dir _site --site-base-url /\
-3. **Publish directory:** \_site\
-4. Deploy
-
-### Cloudflare Pages
-
-1. Import this repo in the Cloudflare dashboard
-2. **Build command:** \pip install wazootech-wiki && wiki build --output-dir _site --site-base-url /\
-3. **Output directory:** \_site\
-4. Deploy
+- Wiki-only SPARQL is best when the answer already lives in the graph.
+- Plain vector RAG is not enough when provenance and freshness matter.
+- CocoIndex sits in the middle: incremental, derived, and easy to rebuild.
