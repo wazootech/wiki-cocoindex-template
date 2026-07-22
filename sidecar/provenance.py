@@ -21,6 +21,7 @@ class ChunkRecord:
     content_hash: str
     source_mtime: str
     derived_at: str
+    wiki_lock_hash: str
     metadata: dict[str, object]
     embedding: list[float]
 
@@ -43,6 +44,13 @@ def content_hash(text: str) -> str:
 
 def file_mtime_iso(path: Path) -> str:
     return f"{path.stat().st_mtime_ns}"
+
+
+def wiki_lock_hash(wiki_root: Path) -> str:
+    lock_path = wiki_root.parent / "wiki.lock"
+    if not lock_path.exists():
+        return "none"
+    return f"sha256:{stable_hash(lock_path.read_text(encoding='utf-8'))[:32]}"
 
 
 def as_jsonable(record: ChunkRecord) -> dict[str, object]:

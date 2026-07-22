@@ -10,7 +10,8 @@ CREATE TABLE IF NOT EXISTS wiki_chunks (
   source_graph text NOT NULL,
   content_hash text NOT NULL,
   source_mtime timestamptz NOT NULL,
-  indexed_at timestamptz NOT NULL DEFAULT now(),
+  derived_at timestamptz NOT NULL DEFAULT now(),
+  wiki_lock_hash text NOT NULL DEFAULT 'none',
   metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
   embedding vector(16) NOT NULL
 );

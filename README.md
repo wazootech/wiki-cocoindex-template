@@ -21,26 +21,44 @@ wiki -c wiki.yml lint --strict
 wiki -c wiki.yml check --strict
 ```
 
-4. Start Postgres with pgvector:
-
-```bash
-docker compose up -d --build
-```
-
-5. Build the deterministic manifest and load the derived index:
+4. Build the deterministic manifest:
 
 ```bash
 python scripts/build_manifest.py
-python scripts/load_index.py
 ```
 
-6. Query the derived index:
+5. Load the derived index and query it. The scripts automatically detect whether Docker Postgres is available, and fall back to PGlite (in-memory or file-persisted) if not.
 
 ```bash
+python scripts/load_index.py
 python scripts/query_index.py "fresh context for agents"
 ```
 
-7. Optional: install CocoIndex to experiment with `sidecar/flow.py`:
+### Docker Postgres path (production-like)
+
+For a real Postgres + pgvector instance:
+
+```bash
+docker compose up -d --build
+python scripts/load_index.py
+python scripts/query_index.py "fresh context for agents"
+```
+
+### PGlite path (zero-Docker)
+
+For a zero-setup local demo, install the PGlite extra:
+
+```bash
+pip install -r requirements-pglite.txt
+python scripts/load_index.py
+python scripts/query_index.py "fresh context for agents"
+```
+
+PGlite uses a WASM Postgres build with pgvector support — no Docker daemon required.
+
+### Optional: CocoIndex flow
+
+Install CocoIndex to experiment with `sidecar/flow.py`:
 
 ```bash
 pip install cocoindex
@@ -52,8 +70,9 @@ pip install cocoindex
 - `wiki/` - validated Markdown source corpus
 - `sidecar/` - manifesting, provenance, retrieval, and CocoIndex example flow
 - `scripts/` - build, load, query, and demo commands
-- `docker-compose.yml` - local Postgres + pgvector
+- `docker-compose.yml` - local Postgres + pgvector (optional)
 - `.github/workflows/` - CI and GitHub Pages deploy
+- `writeback/` - extracted claim suggestions for review
 
 ## Commands
 
@@ -63,7 +82,7 @@ pip install cocoindex
 | `wiki -c wiki.yml lint --strict` | Broken links, filename pattern, heading conventions |
 | `wiki -c wiki.yml check --strict` | SHACL, JSON Schema, route, and layout integrity |
 | `python scripts/build_manifest.py` | Export deterministic page/chunk/link manifests |
-| `python scripts/load_index.py` | Upsert chunk records into Postgres/pgvector |
+| `python scripts/load_index.py` | Upsert chunk records into Postgres/pgvector (auto-detects Docker or PGlite) |
 | `python scripts/query_index.py` | Search the derived index and print citations |
 | `python scripts/demo_incremental_update.py` | Show what changes when a Wiki page changes |
 
@@ -74,7 +93,7 @@ Wiki Markdown + wiki.yml
   -> wiki fmt / lint / check
   -> deterministic manifest build
   -> derived sidecar index
-  -> Postgres + pgvector
+  -> Postgres + pgvector (Docker) or PGlite (zero-Docker)
   -> cited retrieval results
 ```
 
@@ -82,8 +101,20 @@ Wiki Markdown + wiki.yml
 
 - Wiki pages are authoritative.
 - CocoIndex outputs are derived and rebuildable.
-- Every record carries page path, heading, fragment, and content hash.
-- Generated claims stay outside the source corpus until reviewed.
+- Every record carries page path, heading, fragment, content hash, and source graph.
+- Freshness is verifiable: every record includes a `wiki_lock_hash` matching the current `wiki.lock` (or `"none"` for lockless mode).
+- Generated claims stay in `writeback/suggestions/` until reviewed and promoted into the source corpus.
+
+## Writeback pattern
+
+CocoIndex-derived memory should not silently become the canonical corpus. The template uses a `writeback/suggestions/` directory for extracted claims:
+
+1. CocoIndex extracts claims from Wiki content.
+2. Claims are written to `writeback/suggestions/` as structured YAML.
+3. A human reviews each suggestion.
+4. Approved suggestions are promoted into `wiki/` via normal Wiki workflow.
+
+This keeps Wiki as the single source of truth while allowing agent-generated insights to feed back into the corpus with review.
 
 ## Deployment
 
@@ -98,3 +129,15 @@ This template publishes the wiki site with GitHub Pages.
 - Wiki-only SPARQL is best when the answer already lives in the graph.
 - Plain vector RAG is not enough when provenance and freshness matter.
 - CocoIndex sits in the middle: incremental, derived, and easy to rebuild.
+
+## Open questions (design decisions)
+
+This template resolves the following design questions from [#201](https://github.com/wazootech/wiki/issues/201):
+
+| Question | Decision | Rationale |
+| --- | --- | --- |
+| First target | pgvector via Docker, PGlite fallback | Production-like Docker path + zero-setup PGlite path |
+| Chunk manifests | Sidecar-owned, not Wiki CLI | Section splitting is a CocoIndex concern; Wiki CLI owns RDF export |
+| Source identity | `wiki_lock_hash` in every record | Verifiable freshness against `wiki.lock` |
+| Writeback | Report-only in v1 | Wiki trust model requires human review before corpus promotion |
+| Template shape | Standalone repo | Independent versioning, not a variant of RAG templates |

@@ -2,45 +2,24 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import psycopg
-from psycopg.errors import DuplicateObject, UniqueViolation
-from pgvector.psycopg import register_vector
-
+from sidecar.db import connect
 from sidecar.manifest import load_chunks
 from sidecar.retrieval import embed_text, score_text
 
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL", "postgresql://postgres@localhost:5432/postgres"
-)
-
-
-def ensure_vector_extension() -> None:
-    with psycopg.connect(DATABASE_URL, connect_timeout=2) as conn:
-        try:
-            with conn.cursor() as cur:
-                cur.execute("CREATE EXTENSION IF NOT EXISTS vector")
-            conn.commit()
-        except (DuplicateObject, UniqueViolation):
-            conn.rollback()
-
-
 def _query_db(query: str, limit: int) -> list[dict[str, object]]:
     query_embedding = embed_text(query)
-    ensure_vector_extension()
-    with psycopg.connect(DATABASE_URL, connect_timeout=2) as conn:
-        register_vector(conn)
+    with connect() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
                 SELECT page_path, page_title, heading, fragment, content_hash,
-                       text, embedding <=> %s AS distance
+                       wiki_lock_hash, text, embedding <=> %s AS distance
                 FROM wiki_chunks
                 ORDER BY distance ASC
                 LIMIT %s
@@ -55,8 +34,9 @@ def _query_db(query: str, limit: int) -> list[dict[str, object]]:
             "heading": row[2],
             "fragment": row[3],
             "content_hash": row[4],
-            "text": row[5],
-            "score": round(1.0 - float(row[6]), 6),
+            "wiki_lock_hash": row[5],
+            "text": row[6],
+            "score": round(1.0 - float(row[7]), 6),
         }
         for row in rows
     ]
@@ -98,7 +78,7 @@ def main() -> None:
     for row in rows:
         print(f"[{row['score']:.3f}] {row['page_title']} > {row['heading']}")
         print(f"  {row['page_path']}#{row['fragment']}")
-        print(f"  {row['content_hash']}")
+        print(f"  content={row['content_hash']} lock={row['wiki_lock_hash']}")
         print(f"  {json.dumps(row['text'][:240], ensure_ascii=True)}")
 
 

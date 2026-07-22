@@ -11,7 +11,7 @@ try:
 except ImportError:  # pragma: no cover - dependency is present in CI.
     yaml = None
 
-from .provenance import ChunkRecord, DEFAULT_SOURCE_GRAPH, content_hash, make_chunk_id
+from .provenance import ChunkRecord, DEFAULT_SOURCE_GRAPH, content_hash, make_chunk_id, wiki_lock_hash
 from .retrieval import embed_text
 
 
@@ -88,7 +88,7 @@ def _links(body: str) -> list[tuple[str, str]]:
     return results
 
 
-def page_records(path: Path, wiki_root: Path, source_graph: str = DEFAULT_SOURCE_GRAPH) -> tuple[dict[str, object], list[ChunkRecord], list[dict[str, str]]]:
+def page_records(path: Path, wiki_root: Path, source_graph: str = DEFAULT_SOURCE_GRAPH, lock_hash: str = "none") -> tuple[dict[str, object], list[ChunkRecord], list[dict[str, str]]]:
     raw = path.read_text(encoding="utf-8")
     frontmatter, body = _parse_frontmatter(raw)
     title = _page_title(path, body)
@@ -109,6 +109,7 @@ def page_records(path: Path, wiki_root: Path, source_graph: str = DEFAULT_SOURCE
             content_hash=content_hash(text),
             source_mtime=mtime,
             derived_at=datetime.now(tz=UTC).isoformat(),
+            wiki_lock_hash=lock_hash,
             metadata={"frontmatter": frontmatter},
             embedding=embed_text(text),
         )
@@ -130,12 +131,13 @@ def page_records(path: Path, wiki_root: Path, source_graph: str = DEFAULT_SOURCE
 
 def build_manifest(wiki_root: Path, build_dir: Path, source_graph: str = DEFAULT_SOURCE_GRAPH) -> dict[str, int]:
     build_dir.mkdir(parents=True, exist_ok=True)
+    lock_hash = wiki_lock_hash(wiki_root)
     pages: list[dict[str, object]] = []
     chunks: list[dict[str, object]] = []
     links: list[dict[str, str]] = []
 
     for path in sorted(wiki_root.glob("**/*.md")):
-        page_row, page_chunks, page_links = page_records(path, wiki_root, source_graph)
+        page_row, page_chunks, page_links = page_records(path, wiki_root, source_graph, lock_hash)
         pages.append(page_row)
         chunks.extend(asdict(chunk) for chunk in page_chunks)
         links.extend(page_links)
